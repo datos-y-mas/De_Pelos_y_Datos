@@ -2,9 +2,12 @@ name: Bot de Mascotas Facebook
 
 on:
   schedule:
-    # Ejecutar cada 3 horas
-    - cron: '0 */3 * * *'
+    # Ejecutar a las 12:00, 18:00 y 23:00 UTC (9:00 AM, 3:00 PM y 8:00 PM en Argentina)
+    - cron: '0 12,18,23 * * *'
   workflow_dispatch: # Permite ejecución manual desde la web de GitHub
+
+permissions:
+  contents: write # Da permiso al bot para subir archivos al repositorio
 
 jobs:
   publicar:
@@ -30,3 +33,10 @@ jobs:
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
         run: python main.py
+
+      - name: Guardar historial de temas
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add historial_temas.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Actualizar historial de temas [skip ci]" && git push)

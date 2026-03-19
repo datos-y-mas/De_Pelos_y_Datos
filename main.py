@@ -14,6 +14,32 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 FB_PAGE_ID = os.getenv("FB_PAGE_ID")
 FB_ACCESS_TOKEN = os.getenv("FB_ACCESS_TOKEN")
 
+HISTORIAL_FILE = "historial_temas.json"
+
+def get_tema_no_repetido(temas_disponibles):
+    historial = []
+    if os.path.exists(HISTORIAL_FILE):
+        try:
+            with open(HISTORIAL_FILE, 'r') as f:
+                historial = json.load(f)
+        except Exception:
+            pass
+
+    # Filtrar los temas que aún no se han publicado
+    temas_restantes = [t for t in temas_disponibles if t not in historial]
+
+    if not temas_restantes:
+        print(" -> [Aviso] Se han usado todos los temas. Reiniciando historial...")
+        historial = []
+        temas_restantes = temas_disponibles
+
+    tema_elegido = random.choice(temas_restantes)
+    historial.append(tema_elegido)
+    with open(HISTORIAL_FILE, 'w') as f:
+        json.dump(historial, f)
+
+    return tema_elegido
+
 def generate_content():
     print("[1/4] Generando contenido con Groq...")
     try:
@@ -27,9 +53,17 @@ def generate_content():
             "consejos de salud para mascotas",
             "datos de importancia sobre mascotas",
             "humor y situaciones divertidas típicas de los dueños de mascotas",
-            "mitos vs realidades de las mascotas"
+            "mitos vs realidades de las mascotas",
+            "ideas de juegos caseros para divertir a perros y gatos",
+            "los increíbles beneficios emocionales de tener una mascota",
+            "curiosidades fascinantes sobre razas específicas de perros",
+            "curiosidades fascinantes sobre razas específicas de gatos",
+            "alimentos humanos que son saludables (y los que son tóxicos) para mascotas",
+            "historias cortas e inspiradoras sobre adopción y rescate animal",
+            "cómo preparar y cuidar a tu mascota durante los cambios de clima (calor/frío)",
+            "traduciendo el lenguaje corporal: qué significa lo que hace tu mascota"
         ]
-        tema_elegido = random.choice(temas)
+        tema_elegido = get_tema_no_repetido(temas)
         print(f" -> Tema elegido para esta publicación: {tema_elegido}")
 
         prompt = f"""
