@@ -61,7 +61,34 @@ def generate_content():
         print(f"[Error] Falló la generación de contenido: {e}")
         raise
 
-def generate_image(prompt, filename="temp_image.jpg", max_retries=5):
+def get_fallback_image(filename="temp_image.jpg"):
+    print(" -> [Plan B] Obteniendo una imagen real de mascota como respaldo...")
+    
+    for attempt in range(1, 4): # Intentar hasta 3 veces en el Plan B
+        try:
+            animal = random.choice(["perro", "gato"])
+            if animal == "perro":
+                response = requests.get("https://dog.ceo/api/breeds/image/random", timeout=15)
+                response.raise_for_status() # Verifica que la petición fue exitosa (200 OK)
+                img_url = response.json()["message"]
+            else:
+                response = requests.get("https://api.thecatapi.com/v1/images/search", timeout=15)
+                response.raise_for_status()
+                img_url = response.json()[0]["url"]
+                
+            img_response = requests.get(img_url, timeout=15)
+            img_response.raise_for_status()
+            with open(filename, 'wb') as f:
+                f.write(img_response.content)
+            print(f" -> ¡Plan B exitoso en el intento {attempt}! Imagen guardada localmente como {filename}.")
+            return filename
+        except Exception as e:
+            print(f" -> [Aviso Plan B] Falló el intento {attempt}: {e}")
+            time.sleep(2)
+            
+    raise Exception("Todas las APIs de imágenes (Plan A y Plan B) fallaron.")
+
+def generate_image(prompt, filename="temp_image.jpg", max_retries=3):
     print("[2/4] Generando imagen con Pollinations.ai...")
     encoded_prompt = urllib.parse.quote(prompt)
     
@@ -69,10 +96,11 @@ def generate_image(prompt, filename="temp_image.jpg", max_retries=5):
         try:
             # Añadir un seed aleatorio para obtener imágenes variadas y evitar cache
             seed = random.randint(1, 1000000)
-            image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true&seed={seed}"
+            # Agregamos el parámetro model=flux para buscar un servidor más estable
+            image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true&seed={seed}&model=flux"
             
             print(f" -> Intento {attempt} de {max_retries}...")
-            response = requests.get(image_url, timeout=45)
+            response = requests.get(image_url, timeout=30)
             response.raise_for_status()
             
             with open(filename, 'wb') as f:
@@ -82,10 +110,10 @@ def generate_image(prompt, filename="temp_image.jpg", max_retries=5):
         except Exception as e:
             print(f" -> [Advertencia] Falló el intento {attempt}: {e}")
             if attempt == max_retries:
-                print("[Error] No se pudo generar la imagen después de varios intentos.")
-                raise
-            espera = 10 * attempt # Espera progresiva: 10s, 20s, 30s...
-            print(f" -> Esperando {espera} segundos para evitar bloqueo por 'Too Many Requests'...")
+                print("[Aviso] Pollinations.ai está caído. Activando Plan B...")
+                return get_fallback_image(filename)
+            espera = 5 * attempt # Espera de 5s, 10s...
+            print(f" -> Esperando {espera} segundos...")
             time.sleep(espera)
 
 def publish_to_facebook(post_text, image_path):
